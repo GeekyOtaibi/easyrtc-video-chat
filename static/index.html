@@ -1,0 +1,213 @@
+<!DOCTYPE>
+<html>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<head>
+  <title>iHealth</title>
+  <link rel="icon" href="img/logo.png">
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3mobile.css">
+  <link rel="stylesheet" type="text/css" href="easyrtc/easyrtc.css">
+  <style>
+    body {
+      background: #333333;
+    }
+
+    #demoContainer {
+      position: relative;
+    }
+
+    #connectControls {
+      float: left;
+      width: 250px;
+      text-align: center;
+      border: 2px solid black;
+    }
+
+    #otherClients {
+      height: 200px;
+      overflow-y: scroll;
+    }
+
+    #selfVideo {
+      position: fixed;
+      bottom: 0;
+      right: 0;
+      width: 300px;
+      float: left;
+      border: 1px solid gray;
+      margin-left: 10px;
+    }
+
+    @media screen and (max-width: 818px) {
+      #selfVideo {
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 200px;
+        float: left;
+        border: 1px solid gray;
+        margin-left: 10px;
+        opacity: 0.3;
+      }
+    }
+
+    .easyrtc_closeButton {
+      z-index: 0;
+      position: fixed;
+      width: 150px;
+      height: 150px;
+      right: 0;
+      left: 45vw;
+      top: 80vh;
+      background-image: url("");
+      opacity: 1;
+    }
+
+    @media screen and (max-width: 818px) {
+      .easyrtc_closeButton {
+        z-index: 0;
+        position: fixed;
+        width: 100px;
+        height: 100px;
+        right: 100;
+        left: 45vw;
+        top: 79vh;
+        background-image: url("");
+        opacity: 1;
+      }
+    }
+
+    #callerVideo {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100vh;
+      width: 100vw;
+      border: 1px solid gray;
+    }
+
+    #connectControls {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+    }
+  </style>
+  <!-- Assumes global locations for socket.io.js and easyrtc.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.4/socket.io.js"></script>
+  <script type="text/javascript" src="easyrtc/easyrtc.js"></script>
+  <script>
+    function findGetParameter(parameterName) {
+      var result = null,
+        tmp = [];
+      location.search
+        .substr(1)
+        .split("&")
+        .forEach(function(item) {
+          tmp = item.split("=");
+          if (tmp[0] === parameterName) result = decodeURIComponent(tmp[1]);
+        });
+      return result;
+    }
+    var selfEasyrtcid = "";
+    var stoplisten = false;
+    var roomid = findGetParameter("roomid");
+    var action = findGetParameter("action");
+    easyrtc.joinRoom(roomid, {
+      "default": 0
+    }, successCB, failureCB);
+
+    function successCB() {
+      console.log("room created");
+    }
+
+    function failureCB() {
+      console.log("room failed to create");
+    }
+
+    function connect() {
+      //easyrtc.setVideoDims(640, 480);
+      if(action == "call"){
+        easyrtc.setRoomOccupantListener(convertListToButtons);
+      }
+      easyrtc.easyApp("easyrtc.iHealth", "selfVideo", ["callerVideo"], loginSuccess, loginFailure);
+    }
+    function firstpair() {
+      callbuttons = document.getElementById("otherClients").getElementsByTagName("button");
+      console.log(callbuttons.length);
+      if(callbuttons.length == 1){
+        stoplisten = true;
+        callbuttons[0].click();
+      }
+    }
+    function clearConnectList() {
+      var otherClientDiv = document.getElementById("otherClients");
+      while (otherClientDiv.hasChildNodes()) {
+        otherClientDiv.removeChild(otherClientDiv.lastChild);
+      }
+    }
+
+    function convertListToButtons(roomName, data, isPrimary) {
+      console.log("stoplisten="+stoplisten);
+      if(stoplisten == false){
+        clearConnectList();
+        var otherClientDiv = document.getElementById("otherClients");
+        console.log(otherClientDiv);
+
+        for (var easyrtcid in data) {
+          var button = document.createElement("button");
+          button.onclick = function(easyrtcid) {
+            return function() {
+              performCall(easyrtcid);
+            };
+          }(easyrtcid);
+          var label = document.createTextNode(easyrtc.idToName(easyrtcid));
+          button.appendChild(label);
+          otherClientDiv.appendChild(button);
+        }
+        firstpair();
+      }
+    }
+
+    function performCall(otherEasyrtcid) {
+      easyrtc.hangupAll();
+
+      var successCB = function() {};
+      var failureCB = function() {};
+      easyrtc.call(otherEasyrtcid, successCB, failureCB);
+    }
+
+    function loginSuccess(easyrtcid) {
+      selfEasyrtcid = easyrtcid;
+      document.getElementById("iam").innerHTML = "I am " + easyrtc.cleanId(easyrtcid);
+    }
+
+    function loginFailure(errorCode, message) {
+      easyrtc.showError(errorCode, message);
+    }
+  </script>
+
+</head>
+
+
+<body onload="connect();">
+  <div id="demoContainer">
+
+    <div id="videos">
+      <div>
+        <video autoplay="" id="callerVideo" src="" style="visibility: visible;"></video>
+        <img src="img/endcall.png" id="endcallbtn" class="easyrtc_closeButton" />
+      </div>
+      <video autoplay="" class="easyrtcMirror" id="selfVideo" muted="" volume="0" src=""></video>
+
+      <!-- each caller video needs to be in it"s own div so it"s close button can be positioned correctly -->
+
+    </div>
+    <div hidden style="color:white;" id="connectControls">
+      <div id="iam"></div>
+      <strong>Connected users:</strong>
+      <div id="otherClients"></div>
+    </div>
+  </div>
+</body>
+
+</html>
